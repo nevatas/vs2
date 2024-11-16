@@ -1,52 +1,74 @@
 player = {
     x = 0,
     y = 0,
-    size = 50,  -- Это теперь будет использоваться для коллизий
+    size = 50,
     speed = 300,
     maxHp = 100,
     hp = 100,
     damageTimer = 0,
     damageInterval = 0.5,
-    sprite = nil,  -- Здесь будем хранить спрайт
-    scale = 1      -- Масштаб спрайта, настройте под свои нужды
+    sprite = nil,
+    scale = 1,
+    shootTimer = 0,    -- Таймер для стрельбы
+    shootInterval = 0.5 -- Интервал между выстрелами (2 раза в секунду)
 }
 
 function initializePlayer()
-    -- Загружаем спрайт игрока
     player.sprite = love.graphics.newImage("assets/player.png")
-    
-    -- Вычисляем масштаб, чтобы спрайт соответствовал желаемому размеру
     player.scale = player.size / player.sprite:getWidth()
-    
     player.x = gameWorld.width / 2
     player.y = gameWorld.height / 2
 end
 
 function updatePlayer(dt)
     player.damageTimer = math.max(0, player.damageTimer - dt)
+    player.shootTimer = math.max(0, player.shootTimer - dt)
     
-    -- Движение игрока
-    local dx = 0
-    local dy = 0
+    -- Получаем позицию курсора в мировых координатах
+    local mouseX = love.mouse.getX() + camera.x
+    local mouseY = love.mouse.getY() + camera.y
     
-    if love.keyboard.isDown('right') then dx = dx + 1 end
-    if love.keyboard.isDown('left') then dx = dx - 1 end
-    if love.keyboard.isDown('down') then dy = dy + 1 end
-    if love.keyboard.isDown('up') then dy = dy - 1 end
+    -- Вычисляем направление к курсору
+    local dx = mouseX - (player.x + player.size/2)
+    local dy = mouseY - (player.y + player.size/2)
+    local length = math.sqrt(dx * dx + dy * dy)
     
-    -- Нормализация диагонального движения
-    if dx ~= 0 and dy ~= 0 then
-        local length = math.sqrt(dx * dx + dy * dy)
+    -- Двигаемся в направлении курсора только если он достаточно далеко
+    if length > 5 then  -- Небольшой порог, чтобы избежать дрожания
         dx = dx / length
         dy = dy / length
+        
+        player.x = math.max(0, math.min(player.x + dx * player.speed * dt, gameWorld.width - player.size))
+        player.y = math.max(0, math.min(player.y + dy * player.speed * dt, gameWorld.height - player.size))
     end
     
-    player.x = math.max(0, math.min(player.x + dx * player.speed * dt, gameWorld.width - player.size))
-    player.y = math.max(0, math.min(player.y + dy * player.speed * dt, gameWorld.height - player.size))
+    -- Автоматическая стрельба
+    if player.shootTimer <= 0 then
+        -- Находим ближайшего врага
+        local nearestEnemy = findNearestEnemy()
+        if nearestEnemy then
+            -- Создаем пулю в направлении ближайшего врага
+            local playerCenterX = player.x + player.size/2
+            local playerCenterY = player.y + player.size/2
+            local angle = math.atan2(
+                nearestEnemy.y - playerCenterY,
+                nearestEnemy.x - playerCenterX
+            )
+            
+            local bullet = {
+                x = playerCenterX,
+                y = playerCenterY,
+                dx = math.cos(angle) * bulletSpeed,
+                dy = math.sin(angle) * bulletSpeed
+            }
+            table.insert(bullets, bullet)
+            player.shootTimer = player.shootInterval
+        end
+    end
     
     -- Проверка получения урона
     if player.damageTimer == 0 then
-        for _, enemy in ipairs(enemies) do
+        for _, enemy in ipairs(EnemyManager.enemies) do
             if checkCollision(
                 player.x, player.y, player.size, player.size,
                 enemy.x - enemy.size, enemy.y - enemy.size,
@@ -63,23 +85,41 @@ function updatePlayer(dt)
     end
 end
 
-function drawPlayer()
-    -- Устанавливаем цвет наложения при получении урона
-    if player.damageTimer > 0 then
-        love.graphics.setColor(1, 0, 0, 1)  -- Красный оттенок при уроне
-    else
-        love.graphics.setColor(1, 1, 1, 1)  -- Обычный цвет
+function findNearestEnemy()
+    local nearestEnemy = nil
+    local minDistance = math.huge
+    local playerCenterX = player.x + player.size/2
+    local playerCenterY = player.y + player.size/2
+    
+    for _, enemy in ipairs(EnemyManager.enemies) do
+        local dx = enemy.x - playerCenterX
+        local dy = enemy.y - playerCenterY
+        local distance = dx * dx + dy * dy
+        
+        if distance < minDistance then
+            minDistance = distance
+            nearestEnemy = enemy
+        end
     end
     
-    -- Рисуем спрайт игрока
+    return nearestEnemy
+end
+
+function drawPlayer()
+    if player.damageTimer > 0 then
+        love.graphics.setColor(1, 0, 0, 1)
+    else
+        love.graphics.setColor(1, 1, 1, 1)
+    end
+    
     love.graphics.draw(
         player.sprite,
-        player.x + player.size/2,  -- Центрируем спрайт по X
-        player.y + player.size/2,  -- Центрируем спрайт по Y
-        0,                         -- Поворот (в радианах)
-        player.scale,              -- Масштаб по X
-        player.scale,              -- Масштаб по Y
-        player.sprite:getWidth()/2,  -- Точка поворота X (центр спрайта)
-        player.sprite:getHeight()/2   -- Точка поворота Y (центр спрайта)
+        player.x + player.size/2,
+        player.y + player.size/2,
+        0,
+        player.scale,
+        player.scale,
+        player.sprite:getWidth()/2,
+        player.sprite:getHeight()/2
     )
 end

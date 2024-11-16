@@ -39,15 +39,16 @@ function updatePowerup(dt)
         guardian.y = player.y + player.size/2 + math.sin(guardian.angle) * guardian.distance - guardian.size/2
         
         -- Проверка столкновений защитника с врагами
-        for i = #enemies, 1, -1 do
+        for i = #EnemyManager.enemies, 1, -1 do
+            local enemy = EnemyManager.enemies[i]
             if checkCollision(
                 guardian.x, guardian.y, guardian.size, guardian.size,
-                enemies[i].x - enemies[i].size, enemies[i].y - enemies[i].size,
-                enemies[i].size * 2, enemies[i].size * 2
+                enemy.x - enemy.size, enemy.y - enemy.size,
+                enemy.size * 2, enemy.size * 2
             ) then
-                table.remove(enemies, i)
-                score = score + 1
-                createNewEnemy()
+                table.remove(EnemyManager.enemies, i)
+                score = score + enemy.score
+                EnemyManager.createNewEnemy()
             end
         end
     end

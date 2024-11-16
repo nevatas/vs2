@@ -1,9 +1,12 @@
 require 'player'
-require 'enemy'
 require 'powerup'
 require 'bullet'
 require 'camera'
 require 'collision'
+require 'effects'
+require 'enemy/base_enemy'
+require 'enemy/squid'
+require 'enemy/enemy_manager'
 
 function love.load()
     -- Размеры игрового мира
@@ -13,9 +16,13 @@ function love.load()
     }
     
     -- Инициализация всех систем
+    initializeEffects()  -- Инициализируем эффекты первыми для проигрывания звука
     initializePlayer()
     initializePowerup()
-    initializeEnemies()
+    EnemyManager.initialize()  -- Используем новый менеджер врагов
+    
+    -- Инициализация счета
+    score = 0
     
     -- Инициализация шрифта
     font = love.graphics.newFont(24)
@@ -23,17 +30,17 @@ function love.load()
 end
 
 function love.update(dt)
+    -- Обновляем всю игровую логику независимо от эффекта затемнения
     updatePlayer(dt)
     updatePowerup(dt)
-    updateEnemies(dt)
+    EnemyManager.update(dt, player)  -- Передаем игрока в менеджер врагов
     updateBullets(dt)
     updateCamera()
+    updateEffects(dt)
 end
 
 function love.mousepressed(x, y, button)
-    if button == 1 then
-        createBullet(x, y)
-    end
+    -- Пустая функция, так как стрельба теперь автоматическая
 end
 
 function love.draw()
@@ -45,7 +52,7 @@ function love.draw()
     love.graphics.rectangle('line', 0, 0, gameWorld.width, gameWorld.height)
     
     drawPowerup()
-    drawEnemies()
+    EnemyManager.draw()  -- Используем метод отрисовки из менеджера врагов
     drawBullets()
     drawPlayer()
     
@@ -53,6 +60,9 @@ function love.draw()
     
     -- Интерфейс
     drawInterface()
+    
+    -- Рисуем эффекты поверх всего
+    drawEffects()
 end
 
 function drawInterface()

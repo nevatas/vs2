@@ -31,13 +31,13 @@ function updateBullets(dt)
             table.remove(bullets, i)
         else
             local bulletHit = false
-            for j = #enemies, 1, -1 do
-                local enemy = enemies[j]
+            for j = #EnemyManager.enemies, 1, -1 do
+                local enemy = EnemyManager.enemies[j]
                 if checkCircleCollision(bullet.x, bullet.y, enemy.x, enemy.y, enemy.size) then
-                    table.remove(enemies, j)
+                    table.remove(EnemyManager.enemies, j)
                     bulletHit = true
                     score = score + 1
-                    createNewEnemy()
+                    EnemyManager.createNewEnemy()
                     break
                 end
             end
